@@ -53,6 +53,7 @@ function create(config, cb) {
 
   if (!_.isFunction(cb)) { throw new Error('callback is required'); }
   if (!config || !config.appRoot) { return cb(new Error('config.appRoot is required')); }
+  if (!config.swaggerConf) { return cb(new Error('config.swaggerConf is required')); }
 
   new Runner(config, cb);
 }
@@ -159,11 +160,8 @@ function Runner(appJsConfig, cb) {
   };
 
   // don't override if env var already set
-  if (!process.env.NODE_CONFIG_DIR) {
-    if (!appJsConfig.configDir) { appJsConfig.configDir = 'config'; }
-    process.env.NODE_CONFIG_DIR = path.resolve(appJsConfig.appRoot, appJsConfig.configDir);
-  }
-  var Config = require('config');
+  var config = appJsConfig.swaggerConf;
+  this.config = {};
 
   var swaggerConfigDefaults = {
     enforceUniqueOperationId: false,
@@ -171,13 +169,12 @@ function Runner(appJsConfig, cb) {
     startWithWarnings: true
   };
 
-  this.config = Config.util.cloneDeep(Config);
-  this.config.swagger =
-    Config.util.extendDeep(
-      swaggerConfigDefaults,
-      this.config.swagger,
-      appJsConfig,
-      readEnvConfig());
+  this.config.swagger = _.cloneDeep(config);
+  this.config.swagger = _.extend(
+    swaggerConfigDefaults,
+    this.config.swagger,
+    _.omit(appJsConfig, 'swaggerConf'),
+    readEnvConfig())
 
   debug('resolved config: %j', this.config);
 
@@ -245,7 +242,7 @@ function Runner(appJsConfig, cb) {
           console.error("\t#" + i + ".: " + err.validationErrors[i].message + " in swagger config at: >" + err.validationErrors[i].path.join('/') + "<");
         }
       }
-      
+
       process.nextTick(function() { throw err; });
     })
 }
